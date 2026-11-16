@@ -67,6 +67,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 @keyframes pop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
 @keyframes fill{to{width:100%}}
 @media (prefers-reduced-motion:reduce){#splash .lg,.ld i{animation-duration:.01s}}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;display:none;z-index:50;max-width:90%;text-align:center}
 </style>
 </head>
 <body>
@@ -96,15 +97,56 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 <div class="nav"><button id="prev" aria-label="Previous month">‹</button><h2 id="mt"></h2><button id="next" aria-label="Next month">›</button></div>
 <div class="dow"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
 <div class="grid" id="grid"></div>
+<button class="btn" id="out" style="display:none;margin:0 auto 24px;width:150px">Sign out</button>
 
 <div class="veil" id="dayV"><div class="sheet" id="dayS"></div></div>
+<div class="veil" id="loginV"><div class="sheet" id="loginS"></div></div>
+<div id="toast" role="status"></div>
 <div class="veil" id="formV"><div class="sheet" id="formS"></div></div>
 
 <script>
 const CARS={Vios:'var(--vios)',Rush:'var(--rush)',Wigo:'var(--wigo)'};
 const KEY='chloes-car-rental-v1';
-let B=[];try{B=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){B=[]}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(B))}catch(e){}}
+/* ===== SUPABASE SETTINGS: paste your Project URL and anon public key between the quotes ===== */
+const SUPA_URL='';
+const SUPA_KEY='';
+/* Leave both empty to keep bookings on this phone only. */
+const CLOUD=!!(SUPA_URL&&SUPA_KEY);
+let B=[];
+if(!CLOUD){try{B=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){B=[]}}
+function save(){if(!CLOUD){try{localStorage.setItem(KEY,JSON.stringify(B))}catch(e){}}}
+let S=null;try{S=JSON.parse(localStorage.getItem(KEY+'-auth')||'null')}catch(e){}
+async function auth(body,grant){
+ const r=await fetch(SUPA_URL+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const j=await r.json();
+ if(!r.ok)throw new Error(j.error_description||j.msg||'Sign in failed');
+ S={access:j.access_token,refresh:j.refresh_token};
+ try{localStorage.setItem(KEY+'-auth',JSON.stringify(S))}catch(e){}
+}
+async function api(path,opt={},retry=true){
+ if(!S)throw new Error('auth');
+ const r=await fetch(SUPA_URL+'/rest/v1/'+path,{...opt,headers:{apikey:SUPA_KEY,Authorization:'Bearer '+S.access,'Content-Type':'application/json',...(opt.headers||{})}});
+ if(r.status===401&&retry){try{await auth({refresh_token:S.refresh},'refresh_token')}catch(e){signOut();throw new Error('auth')}return api(path,opt,false)}
+ if(!r.ok)throw new Error((await r.text())||String(r.status));
+ return r.status===204?null:r.json();
+}
+const fromDB=r=>({id:r.id,car:r.car,renter:r.renter,agent:r.agent||'',sd:r.start_date,st:(r.start_time||'').slice(0,5),ed:r.end_date,et:(r.end_time||'').slice(0,5),dest:r.destination||'',driver:r.driver||''});
+const toDB=b=>({id:b.id,car:b.car,renter:b.renter,agent:b.agent,start_date:b.sd,start_time:b.st,end_date:b.ed,end_time:b.et,destination:b.dest,driver:b.driver});
+async function pull(){
+ if(!CLOUD||!S)return;
+ try{B=(await api('bookings?select=*')).map(fromDB);render();if($('dayV').classList.contains('on'))openDay(sel)}
+ catch(e){if(e.message!=='auth')note('No connection. Showing the last loaded bookings.')}
+}
+function note(t){const x=$('toast');x.textContent=t;x.style.display='block';setTimeout(()=>{x.style.display='none'},3500)}
+function signOut(){S=null;try{localStorage.removeItem(KEY+'-auth')}catch(e){}B=[];render();$('out').style.display='none';showLogin()}
+function showLogin(msg){
+ $('loginS').innerHTML=`<h3>Sign in</h3><label for="l_e">Email</label><input id="l_e" type="email" autocomplete="username"><label for="l_p">Password</label><input id="l_p" type="password" autocomplete="current-password"><div class="warn" id="l_w">${esc(msg||'')}</div><div class="row"><button class="btn pri" id="l_go">Sign in</button></div>`;
+ $('loginV').classList.add('on');
+ $('l_go').onclick=async()=>{
+  try{await auth({email:$('l_e').value.trim(),password:$('l_p').value},'password');$('loginV').classList.remove('on');$('out').style.display='block';await pull()}
+  catch(e){$('l_w').textContent=e.message}
+ };
+}
 const $=id=>document.getElementById(id);
 const pad=n=>String(n).padStart(2,'0');
 const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -139,6 +181,7 @@ function openDay(d){
  let h=`<h3>${dlabel(d)}, ${new Date(d+'T00:00').getFullYear()}</h3>`;
  h+=list.length?list.map(b=>`<div class="bk" style="border-left-color:${CARS[b.car]}"><h4>${b.car}</h4><dl>
  <dt>Renter</dt><dd>${esc(b.renter)}</dd>
+ <dt>Agent</dt><dd>${esc(b.agent)||'—'}</dd>
  <dt>Release</dt><dd>${dlabel(b.sd)}, ${t12(b.st)}</dd>
  <dt>Returned</dt><dd>${dlabel(b.ed)}, ${t12(b.et)}</dd>
  <dt>Destination</dt><dd>${esc(b.dest)}</dd>
@@ -147,21 +190,24 @@ function openDay(d){
  h+=`<div class="row"><button class="btn" id="closeDay">Close</button><button class="btn pri" id="addDay">+ Book a car</button></div>`;
  $('dayS').innerHTML=h;$('dayV').classList.add('on');
 }
-$('dayS').onclick=e=>{
+$('dayS').onclick=async e=>{
  const t=e.target;
  if(t.id==='closeDay')$('dayV').classList.remove('on');
  else if(t.id==='addDay'){$('dayV').classList.remove('on');openForm(null,sel)}
  else if(t.dataset.e){$('dayV').classList.remove('on');openForm(B.find(b=>b.id===t.dataset.e))}
- else if(t.dataset.x&&confirm('Delete this booking?')){B=B.filter(b=>b.id!==t.dataset.x);save();render();openDay(sel)}
+ else if(t.dataset.x&&confirm('Delete this booking?')){
+  if(CLOUD){try{await api('bookings?id=eq.'+encodeURIComponent(t.dataset.x),{method:'DELETE',headers:{Prefer:'return=minimal'}})}catch(e){note('Could not delete. Check your internet.');return}}
+  B=B.filter(b=>b.id!==t.dataset.x);save();render();openDay(sel)}
 };
 $('dayV').onclick=e=>{if(e.target===$('dayV'))$('dayV').classList.remove('on')};
 $('formV').onclick=e=>{if(e.target===$('formV'))$('formV').classList.remove('on')};
 
 function openForm(b,d){
- const x=b||{id:'',car:'Vios',renter:'',sd:d,st:'08:00',ed:d,et:'17:00',dest:'',driver:''};
+ const x=b||{id:'',car:'Vios',renter:'',agent:'',sd:d,st:'08:00',ed:d,et:'17:00',dest:'',driver:''};
  $('formS').innerHTML=`<h3>${b?'Edit booking':'New booking'}</h3>
  <label for="f_car">Car</label><select id="f_car">${Object.keys(CARS).map(c=>`<option${c===x.car?' selected':''}>${c}</option>`).join('')}</select>
  <label for="f_renter">Renter</label><input id="f_renter" value="${esc(x.renter)}" autocomplete="off">
+ <label for="f_agent">Agent</label><input id="f_agent" value="${esc(x.agent)}" autocomplete="off">
  <div class="two"><div><label for="f_sd">Release date</label><input type="date" id="f_sd" value="${x.sd}"></div><div><label for="f_st">Release time</label><input type="time" id="f_st" value="${x.st}"></div></div>
  <div class="two"><div><label for="f_ed">Return date</label><input type="date" id="f_ed" value="${x.ed}"></div><div><label for="f_et">Returned time</label><input type="time" id="f_et" value="${x.et}"></div></div>
  <label for="f_dest">Destination</label><input id="f_dest" value="${esc(x.dest)}" autocomplete="off">
@@ -170,14 +216,16 @@ function openForm(b,d){
  <div class="row"><button class="btn" id="fCancel">Cancel</button><button class="btn pri" id="fSave">Save booking</button></div>`;
  $('formV').classList.add('on');
  $('fCancel').onclick=()=>$('formV').classList.remove('on');
- $('fSave').onclick=()=>{
-  const n={id:x.id||String(Date.now()),car:$('f_car').value,renter:$('f_renter').value.trim(),sd:$('f_sd').value,st:$('f_st').value,ed:$('f_ed').value,et:$('f_et').value,dest:$('f_dest').value.trim(),driver:$('f_driver').value.trim()};
+ $('fSave').onclick=async()=>{
+  const n={id:x.id||(CLOUD&&crypto.randomUUID?crypto.randomUUID():String(Date.now())),car:$('f_car').value,renter:$('f_renter').value.trim(),agent:$('f_agent').value.trim(),sd:$('f_sd').value,st:$('f_st').value,ed:$('f_ed').value,et:$('f_et').value,dest:$('f_dest').value.trim(),driver:$('f_driver').value.trim()};
   const w=$('warn');
   if(!n.renter||!n.sd||!n.ed||!n.st||!n.et){w.textContent='Enter the renter, release date and time, and return date and time.';return}
   const s=n.sd+'T'+n.st,r=n.ed+'T'+n.et;
   if(r<=s){w.textContent='Return must be after the release time.';return}
+  if(CLOUD)await pull();
   const clash=B.find(o=>o.id!==n.id&&o.car===n.car&&s<o.ed+'T'+o.et&&r>o.sd+'T'+o.st);
   if(clash){w.textContent=`${n.car} is already booked by ${clash.renter} from ${dlabel(clash.sd)} ${t12(clash.st)} to ${dlabel(clash.ed)} ${t12(clash.et)}.`;return}
+  if(CLOUD){try{await api('bookings',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(toDB(n))})}catch(e){w.textContent=e.message==='auth'?'Please sign in again.':'Could not save. Check your internet and try again.';return}}
   B=B.filter(o=>o.id!==n.id);B.push(n);save();
   $('formV').classList.remove('on');
   const dd=new Date(n.sd+'T00:00');view=new Date(dd.getFullYear(),dd.getMonth(),1);
@@ -186,6 +234,8 @@ function openForm(b,d){
 }
 if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 render();
+$('out').onclick=signOut;
+if(CLOUD){if(S){$('out').style.display='block';pull()}else showLogin();setInterval(pull,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()})}
 $('splashLogo').innerHTML=document.querySelector('header svg').outerHTML;
 setTimeout(()=>{$('splash').classList.add('off');setTimeout(()=>$('splash').remove(),600)},1900);
 </script>
