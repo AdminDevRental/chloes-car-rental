@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Chloe’s Car Rental</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Cinzel:wght@700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#14213d;--mute:#6b7285;--line:#e3e0d8;--gold:#14213d;
+--vios:#d93a3a;--rush:#2f6fe4;--wigo:#f5c400;box-sizing:border-box;
+padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--gold:#f1f3f9;--bg:#0e1424;--card:#18213a;--ink:#f1f3f9;--mute:#98a1bb;--line:#2a3555}}
+:root[data-theme="dark"]{--gold:#f1f3f9;--bg:#0e1424;--card:#18213a;--ink:#f1f3f9;--mute:#98a1bb;--line:#2a3555}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.4 Figtree,system-ui,sans-serif;max-width:560px;margin-inline:auto;min-height:100vh}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:#fff;z-index:10}
+header{position:relative;overflow:hidden;isolation:isolate;display:flex;justify-content:center;padding:10px 16px 16px;background:#fff;color:#14213d;border-bottom:1px solid #e3e0d8}
+header::before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(circle at 0% 0%,rgba(242,177,52,.25) 0 34px,transparent 35px),radial-gradient(circle at 100% 100%,rgba(20,33,61,.07) 0 64px,transparent 65px),repeating-linear-gradient(115deg,rgba(20,33,61,.04) 0 1px,transparent 1px 14px)}
+header::after{content:"";position:absolute;left:0;right:0;bottom:5px;height:2px;z-index:-1;background:repeating-linear-gradient(90deg,rgba(20,33,61,.16) 0 14px,transparent 14px 28px)}
+.grid{margin-bottom:28px}
+header svg{width:290px;max-width:100%;height:auto}
+header h1{margin:0;font:800 19px/1.1 "Bricolage Grotesque",Figtree,sans-serif;letter-spacing:.02em}
+header p{margin:2px 0 0;font-size:12px;color:#f2b134}
+.legend{display:flex;gap:14px;justify-content:center;padding:12px 16px 4px;font-size:14px;font-weight:600}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:8px 12px}
+.nav h2{margin:0;font:700 20px "Bricolage Grotesque",Figtree,sans-serif}
+.nav button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:20px}
+.dow,.grid{display:grid;grid-template-columns:repeat(7,1fr);padding:0 8px;gap:4px}
+.dow div{text-align:center;font-size:12px;color:var(--mute);padding:4px 0}
+.cell{aspect-ratio:1/1.12;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px;display:flex;flex-direction:column;justify-content:space-between;color:var(--ink);font:500 14px Figtree,sans-serif;text-align:left}
+.cell.out{opacity:.35}
+.cell.today{outline:2px solid var(--gold)}
+.bars{display:flex;flex-direction:column;gap:2px}
+.bars b{height:5px;border-radius:3px}
+.add{display:block;margin:16px auto 24px;padding:14px 26px;border:0;border-radius:30px;background:var(--gold);color:var(--bg);font:700 16px "Bricolage Grotesque",Figtree,sans-serif}
+.veil{position:fixed;inset:0;background:rgba(10,15,30,.55);display:none;align-items:flex-end;justify-content:center;z-index:20}
+.veil.on{display:flex}
+.sheet{background:var(--bg);width:100%;max-width:560px;max-height:88vh;overflow:auto;border-radius:20px 20px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom,0px))}
+.sheet h3{margin:0 0 10px;font:700 18px "Bricolage Grotesque",Figtree,sans-serif}
+.bk{background:var(--card);border:1px solid var(--line);border-left:8px solid;border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.bk h4{margin:0 0 4px;font:700 16px "Bricolage Grotesque",Figtree,sans-serif}
+.bk dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:14px}
+.bk dt{color:var(--mute)}.bk dd{margin:0}
+.row{display:flex;gap:8px;margin-top:8px}
+.btn{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 14px Figtree,sans-serif}
+.btn.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.del{color:var(--vios)}
+label{display:block;font-size:13px;color:var(--mute);margin:10px 0 3px}
+input,select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:16px Figtree,sans-serif}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.empty{color:var(--mute);text-align:center;padding:14px 0}
+.warn{color:var(--vios);font-size:14px;margin-top:8px;min-height:20px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+</style>
+</head>
+<body>
+<header>
+<svg viewBox="0 0 300 84" role="img" aria-label="Chloe’s Car Rental">
+<g transform="translate(2 2) scale(.8)">
+<circle cx="50" cy="50" r="50" fill="#14213d"/>
+<circle cx="50" cy="50" r="40" fill="none" stroke="#f2b134" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="202.2 49.1" transform="rotate(35 50 50)"/>
+<path d="M22 56V52Q22 49 26 48L34 46L40 40Q42 38 46 38H58Q61 38 63 40L68 46L75 48Q78 49 78 52V56Q78 58 76 58H70A6 6 0 0 0 58 58H42A6 6 0 0 0 30 58H24Q22 58 22 56Z" fill="#fff"/>
+<path d="M38 46L42 41H52V46ZM55 41H59L64 46H55Z" fill="#14213d"/>
+<rect x="73" y="50" width="4" height="2.5" rx="1" fill="#f2b134"/>
+<circle cx="36" cy="58" r="4.2" fill="#14213d" stroke="#fff" stroke-width="1.8"/>
+<circle cx="64" cy="58" r="4.2" fill="#14213d" stroke="#fff" stroke-width="1.8"/>
+</g>
+<text x="92" y="38" font-family="Cinzel,Georgia,serif" font-weight="700" font-size="29" textLength="204" lengthAdjust="spacing" fill="#14213d">CHLOE’S</text>
+<rect x="92" y="46" width="204" height="2" fill="#f2b134"/>
+<text x="92" y="67" font-family="Figtree,system-ui,sans-serif" font-weight="600" font-size="15" textLength="204" lengthAdjust="spacing" fill="#14213d">CAR RENTAL</text>
+</svg>
+</header>
+
+<div class="legend">
+<span><i style="background:var(--vios)"></i>Vios</span>
+<span><i style="background:var(--rush)"></i>Rush</span>
+<span><i style="background:var(--wigo)"></i>Wigo</span>
+</div>
+<div class="nav"><button id="prev" aria-label="Previous month">‹</button><h2 id="mt"></h2><button id="next" aria-label="Next month">›</button></div>
+<div class="dow"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
+<div class="grid" id="grid"></div>
+
+<div class="veil" id="dayV"><div class="sheet" id="dayS"></div></div>
+<div class="veil" id="formV"><div class="sheet" id="formS"></div></div>
+
+<script>
+const CARS={Vios:'var(--vios)',Rush:'var(--rush)',Wigo:'var(--wigo)'};
+const KEY='chloes-car-rental-v1';
+let B=[];try{B=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){B=[]}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(B))}catch(e){}}
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+let view=new Date();view.setDate(1);let sel=ymd(new Date());
+
+function t12(t){if(!t)return'';let[h,m]=t.split(':').map(Number);const a=h>=12?'PM':'AM';h=h%12||12;return h+':'+pad(m)+' '+a}
+function dlabel(s){const d=new Date(s+'T00:00');return MON[d.getMonth()].slice(0,3)+' '+d.getDate()}
+const onDay=(b,d)=>b.sd<=d&&d<=b.ed;
+
+function render(){
+ $('mt').textContent=MON[view.getMonth()]+' '+view.getFullYear();
+ const first=new Date(view.getFullYear(),view.getMonth(),1);
+ const start=new Date(first);start.setDate(1-first.getDay());
+ const today=ymd(new Date());let h='';
+ for(let i=0;i<42;i++){
+  const d=new Date(start);d.setDate(start.getDate()+i);
+  if(i>=35&&d.getMonth()!==view.getMonth())break;
+  const s=ymd(d);
+  const cars=Object.keys(CARS).filter(c=>B.some(b=>b.car===c&&onDay(b,s)));
+  h+=`<button class="cell${d.getMonth()!==view.getMonth()?' out':''}${s===today?' today':''}" data-d="${s}" aria-label="${s}, ${cars.length} booked"><span>${d.getDate()}</span><span class="bars">${cars.map(c=>`<b style="background:${CARS[c]}"></b>`).join('')}</span></button>`;
+ }
+ $('grid').innerHTML=h;
+}
+$('grid').onclick=e=>{const c=e.target.closest('.cell');if(c)openDay(c.dataset.d)};
+$('prev').onclick=()=>{view.setMonth(view.getMonth()-1);render()};
+$('next').onclick=()=>{view.setMonth(view.getMonth()+1);render()};
+
+function openDay(d){
+ sel=d;const list=B.filter(b=>onDay(b,d)).sort((a,b)=>(a.sd+a.st).localeCompare(b.sd+b.st));
+ let h=`<h3>${dlabel(d)}, ${new Date(d+'T00:00').getFullYear()}</h3>`;
+ h+=list.length?list.map(b=>`<div class="bk" style="border-left-color:${CARS[b.car]}"><h4>${b.car}</h4><dl>
+ <dt>Renter</dt><dd>${esc(b.renter)}</dd>
+ <dt>Release</dt><dd>${dlabel(b.sd)}, ${t12(b.st)}</dd>
+ <dt>Returned</dt><dd>${dlabel(b.ed)}, ${t12(b.et)}</dd>
+ <dt>Destination</dt><dd>${esc(b.dest)}</dd>
+ <dt>Driver</dt><dd>${esc(b.driver)}</dd></dl>
+ <div class="row"><button class="btn" data-e="${b.id}">Edit</button><button class="btn del" data-x="${b.id}">Delete</button></div></div>`).join(''):'<p class="empty">No cars booked on this day.</p>';
+ h+=`<div class="row"><button class="btn" id="closeDay">Close</button><button class="btn pri" id="addDay">+ Book a car</button></div>`;
+ $('dayS').innerHTML=h;$('dayV').classList.add('on');
+}
+$('dayS').onclick=e=>{
+ const t=e.target;
+ if(t.id==='closeDay')$('dayV').classList.remove('on');
+ else if(t.id==='addDay'){$('dayV').classList.remove('on');openForm(null,sel)}
+ else if(t.dataset.e){$('dayV').classList.remove('on');openForm(B.find(b=>b.id===t.dataset.e))}
+ else if(t.dataset.x&&confirm('Delete this booking?')){B=B.filter(b=>b.id!==t.dataset.x);save();render();openDay(sel)}
+};
+$('dayV').onclick=e=>{if(e.target===$('dayV'))$('dayV').classList.remove('on')};
+$('formV').onclick=e=>{if(e.target===$('formV'))$('formV').classList.remove('on')};
+
+function openForm(b,d){
+ const x=b||{id:'',car:'Vios',renter:'',sd:d,st:'08:00',ed:d,et:'17:00',dest:'',driver:''};
+ $('formS').innerHTML=`<h3>${b?'Edit booking':'New booking'}</h3>
+ <label for="f_car">Car</label><select id="f_car">${Object.keys(CARS).map(c=>`<option${c===x.car?' selected':''}>${c}</option>`).join('')}</select>
+ <label for="f_renter">Renter</label><input id="f_renter" value="${esc(x.renter)}" autocomplete="off">
+ <div class="two"><div><label for="f_sd">Release date</label><input type="date" id="f_sd" value="${x.sd}"></div><div><label for="f_st">Release time</label><input type="time" id="f_st" value="${x.st}"></div></div>
+ <div class="two"><div><label for="f_ed">Return date</label><input type="date" id="f_ed" value="${x.ed}"></div><div><label for="f_et">Returned time</label><input type="time" id="f_et" value="${x.et}"></div></div>
+ <label for="f_dest">Destination</label><input id="f_dest" value="${esc(x.dest)}" autocomplete="off">
+ <label for="f_driver">Driver</label><input id="f_driver" value="${esc(x.driver)}" autocomplete="off">
+ <div class="warn" id="warn"></div>
+ <div class="row"><button class="btn" id="fCancel">Cancel</button><button class="btn pri" id="fSave">Save booking</button></div>`;
+ $('formV').classList.add('on');
+ $('fCancel').onclick=()=>$('formV').classList.remove('on');
+ $('fSave').onclick=()=>{
+  const n={id:x.id||String(Date.now()),car:$('f_car').value,renter:$('f_renter').value.trim(),sd:$('f_sd').value,st:$('f_st').value,ed:$('f_ed').value,et:$('f_et').value,dest:$('f_dest').value.trim(),driver:$('f_driver').value.trim()};
+  const w=$('warn');
+  if(!n.renter||!n.sd||!n.ed||!n.st||!n.et){w.textContent='Enter the renter, release date and time, and return date and time.';return}
+  const s=n.sd+'T'+n.st,r=n.ed+'T'+n.et;
+  if(r<=s){w.textContent='Return must be after the release time.';return}
+  const clash=B.find(o=>o.id!==n.id&&o.car===n.car&&s<o.ed+'T'+o.et&&r>o.sd+'T'+o.st);
+  if(clash){w.textContent=`${n.car} is already booked by ${clash.renter} from ${dlabel(clash.sd)} ${t12(clash.st)} to ${dlabel(clash.ed)} ${t12(clash.et)}.`;return}
+  B=B.filter(o=>o.id!==n.id);B.push(n);save();
+  $('formV').classList.remove('on');
+  const dd=new Date(n.sd+'T00:00');view=new Date(dd.getFullYear(),dd.getMonth(),1);
+  render();openDay(n.sd);
+ };
+}
+render();
+</script>
+</body>
+</html>
