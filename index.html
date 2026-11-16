@@ -106,8 +106,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 const CARS={Vios:'var(--vios)',Rush:'var(--rush)',Wigo:'var(--wigo)'};
 const KEY='chloes-car-rental-v1';
 /* ===== SUPABASE SETTINGS: paste your Project URL and anon public key between the quotes ===== */
-const SUPA_URL='https://xrbeucbabuqjimgbmmwf.supabase.co';
-const SUPA_KEY='sb_publishable_WCgSkTsg_3LEt3VaSGxK4g_iVjfP_6a';
+const SUPA_URL='';
+const SUPA_KEY='';
 /* Leave both empty to keep bookings on this phone only. */
 const CLOUD=!!(SUPA_URL&&SUPA_KEY);
 let B=[];
@@ -116,7 +116,7 @@ function save(){if(!CLOUD){try{localStorage.setItem(KEY,JSON.stringify(B))}catch
 async function api(path,opt={}){
  const r=await fetch(SUPA_URL+'/rest/v1/'+path,{...opt,headers:{apikey:SUPA_KEY,'Content-Type':'application/json',...(opt.headers||{})}});
  if(!r.ok)throw new Error((await r.text())||String(r.status));
- return r.status===204?null:r.json();
+ const t=await r.text();return t?JSON.parse(t):null;
 }
 const fromDB=r=>({id:r.id,car:r.car,renter:r.renter,agent:r.agent||'',sd:r.start_date,st:(r.start_time||'').slice(0,5),ed:r.end_date,et:(r.end_time||'').slice(0,5),dest:r.destination||'',driver:r.driver||''});
 const toDB=b=>({id:b.id,car:b.car,renter:b.renter,agent:b.agent,start_date:b.sd,start_time:b.st,end_date:b.ed,end_time:b.et,destination:b.dest,driver:b.driver});
@@ -183,6 +183,7 @@ $('formV').onclick=e=>{if(e.target===$('formV'))$('formV').classList.remove('on'
 
 function openForm(b,d){
  const x=b||{id:'',car:'Vios',renter:'',agent:'',sd:d,st:'08:00',ed:d,et:'17:00',dest:'',driver:''};
+ if(!x.id)x.id=CLOUD&&crypto.randomUUID?crypto.randomUUID():String(Date.now());
  $('formS').innerHTML=`<h3>${b?'Edit booking':'New booking'}</h3>
  <label for="f_car">Car</label><select id="f_car">${Object.keys(CARS).map(c=>`<option${c===x.car?' selected':''}>${c}</option>`).join('')}</select>
  <label for="f_renter">Renter</label><input id="f_renter" value="${esc(x.renter)}" autocomplete="off">
@@ -204,7 +205,7 @@ function openForm(b,d){
   if(CLOUD)await pull();
   const clash=B.find(o=>o.id!==n.id&&o.car===n.car&&s<o.ed+'T'+o.et&&r>o.sd+'T'+o.st);
   if(clash){w.textContent=`${n.car} is already booked by ${clash.renter} from ${dlabel(clash.sd)} ${t12(clash.st)} to ${dlabel(clash.ed)} ${t12(clash.et)}.`;return}
-  if(CLOUD){try{await api('bookings',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(toDB(n))})}catch(e){w.textContent='Could not save. Check your internet and try again.';return}}
+  if(CLOUD){try{await api('bookings',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(toDB(n))})}catch(e){w.textContent='Could not save. '+String(e.message).slice(0,140);return}}
   B=B.filter(o=>o.id!==n.id);B.push(n);save();
   $('formV').classList.remove('on');
   const dd=new Date(n.sd+'T00:00');view=new Date(dd.getFullYear(),dd.getMonth(),1);
