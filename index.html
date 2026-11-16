@@ -97,10 +97,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 <div class="nav"><button id="prev" aria-label="Previous month">‹</button><h2 id="mt"></h2><button id="next" aria-label="Next month">›</button></div>
 <div class="dow"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
 <div class="grid" id="grid"></div>
-<button class="btn" id="out" style="display:none;margin:0 auto 24px;width:150px">Sign out</button>
 
 <div class="veil" id="dayV"><div class="sheet" id="dayS"></div></div>
-<div class="veil" id="loginV"><div class="sheet" id="loginS"></div></div>
 <div id="toast" role="status"></div>
 <div class="veil" id="formV"><div class="sheet" id="formS"></div></div>
 
@@ -115,38 +113,19 @@ const CLOUD=!!(SUPA_URL&&SUPA_KEY);
 let B=[];
 if(!CLOUD){try{B=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){B=[]}}
 function save(){if(!CLOUD){try{localStorage.setItem(KEY,JSON.stringify(B))}catch(e){}}}
-let S=null;try{S=JSON.parse(localStorage.getItem(KEY+'-auth')||'null')}catch(e){}
-async function auth(body,grant){
- const r=await fetch(SUPA_URL+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});
- const j=await r.json();
- if(!r.ok)throw new Error(j.error_description||j.msg||'Sign in failed');
- S={access:j.access_token,refresh:j.refresh_token};
- try{localStorage.setItem(KEY+'-auth',JSON.stringify(S))}catch(e){}
-}
-async function api(path,opt={},retry=true){
- if(!S)throw new Error('auth');
- const r=await fetch(SUPA_URL+'/rest/v1/'+path,{...opt,headers:{apikey:SUPA_KEY,Authorization:'Bearer '+S.access,'Content-Type':'application/json',...(opt.headers||{})}});
- if(r.status===401&&retry){try{await auth({refresh_token:S.refresh},'refresh_token')}catch(e){signOut();throw new Error('auth')}return api(path,opt,false)}
+async function api(path,opt={}){
+ const r=await fetch(SUPA_URL+'/rest/v1/'+path,{...opt,headers:{apikey:SUPA_KEY,'Content-Type':'application/json',...(opt.headers||{})}});
  if(!r.ok)throw new Error((await r.text())||String(r.status));
  return r.status===204?null:r.json();
 }
 const fromDB=r=>({id:r.id,car:r.car,renter:r.renter,agent:r.agent||'',sd:r.start_date,st:(r.start_time||'').slice(0,5),ed:r.end_date,et:(r.end_time||'').slice(0,5),dest:r.destination||'',driver:r.driver||''});
 const toDB=b=>({id:b.id,car:b.car,renter:b.renter,agent:b.agent,start_date:b.sd,start_time:b.st,end_date:b.ed,end_time:b.et,destination:b.dest,driver:b.driver});
 async function pull(){
- if(!CLOUD||!S)return;
+ if(!CLOUD)return;
  try{B=(await api('bookings?select=*')).map(fromDB);render();if($('dayV').classList.contains('on'))openDay(sel)}
- catch(e){if(e.message!=='auth')note('No connection. Showing the last loaded bookings.')}
+ catch(e){note('No connection. Showing the last loaded bookings.')}
 }
 function note(t){const x=$('toast');x.textContent=t;x.style.display='block';setTimeout(()=>{x.style.display='none'},3500)}
-function signOut(){S=null;try{localStorage.removeItem(KEY+'-auth')}catch(e){}B=[];render();$('out').style.display='none';showLogin()}
-function showLogin(msg){
- $('loginS').innerHTML=`<h3>Sign in</h3><label for="l_e">Email</label><input id="l_e" type="email" autocomplete="username"><label for="l_p">Password</label><input id="l_p" type="password" autocomplete="current-password"><div class="warn" id="l_w">${esc(msg||'')}</div><div class="row"><button class="btn pri" id="l_go">Sign in</button></div>`;
- $('loginV').classList.add('on');
- $('l_go').onclick=async()=>{
-  try{await auth({email:$('l_e').value.trim(),password:$('l_p').value},'password');$('loginV').classList.remove('on');$('out').style.display='block';await pull()}
-  catch(e){$('l_w').textContent=e.message}
- };
-}
 const $=id=>document.getElementById(id);
 const pad=n=>String(n).padStart(2,'0');
 const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -225,7 +204,7 @@ function openForm(b,d){
   if(CLOUD)await pull();
   const clash=B.find(o=>o.id!==n.id&&o.car===n.car&&s<o.ed+'T'+o.et&&r>o.sd+'T'+o.st);
   if(clash){w.textContent=`${n.car} is already booked by ${clash.renter} from ${dlabel(clash.sd)} ${t12(clash.st)} to ${dlabel(clash.ed)} ${t12(clash.et)}.`;return}
-  if(CLOUD){try{await api('bookings',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(toDB(n))})}catch(e){w.textContent=e.message==='auth'?'Please sign in again.':'Could not save. Check your internet and try again.';return}}
+  if(CLOUD){try{await api('bookings',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(toDB(n))})}catch(e){w.textContent='Could not save. Check your internet and try again.';return}}
   B=B.filter(o=>o.id!==n.id);B.push(n);save();
   $('formV').classList.remove('on');
   const dd=new Date(n.sd+'T00:00');view=new Date(dd.getFullYear(),dd.getMonth(),1);
@@ -234,8 +213,7 @@ function openForm(b,d){
 }
 if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 render();
-$('out').onclick=signOut;
-if(CLOUD){if(S){$('out').style.display='block';pull()}else showLogin();setInterval(pull,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()})}
+if(CLOUD){pull();setInterval(pull,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()})}
 $('splashLogo').innerHTML=document.querySelector('header svg').outerHTML;
 setTimeout(()=>{$('splash').classList.add('off');setTimeout(()=>$('splash').remove(),600)},1900);
 </script>
