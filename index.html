@@ -70,6 +70,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;display:none;z-index:50;max-width:90%;text-align:center}
 .hint{margin:6px 16px 0;text-align:center;color:var(--mute);font-size:13px}
 .ok{color:#1b8a5a;font-weight:700}.no{color:var(--vios);font-weight:700}
+.lnk{display:block;margin:0 auto 16px;background:none;border:0;color:var(--mute);font:500 13px Figtree,sans-serif;text-decoration:underline;padding:8px 14px}
 </style>
 </head>
 <body>
@@ -100,7 +101,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 <div class="nav"><button id="prev" aria-label="Previous month">‹</button><h2 id="mt"></h2><button id="next" aria-label="Next month">›</button></div>
 <div class="dow"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
 <div class="grid" id="grid"></div>
-<button class="btn" id="out" style="display:none;margin:0 auto 24px;width:170px">Owner login</button>
+<button class="lnk" id="out" style="display:none">Log in as admin</button>
 
 <div class="veil" id="dayV"><div class="sheet" id="dayS"></div></div>
 <div class="veil" id="loginV"><div class="sheet" id="loginS"></div></div>
@@ -112,8 +113,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 const CARS={Vios:'var(--vios)',Rush:'var(--rush)',Wigo:'var(--wigo)'};
 const KEY='chloes-car-rental-v1';
 const CFG=window.APP_CONFIG||{};
-const SUPA_URL=CFG.url||'https://xrbeucbabuqjimgbmmwf.supabase.co';
-const SUPA_KEY=CFG.key||'sb_publishable_WCgSkTsg_3LEt3VaSGxK4g_iVjfP_6a';
+const SUPA_URL=CFG.url||'';
+const SUPA_KEY=CFG.key||'';
 const CONTACT_NOTE=CFG.contact||'To reserve a car, please message Chloe.';
 const CLOUD=!!(SUPA_URL&&SUPA_KEY);
 let B=[];
@@ -145,16 +146,27 @@ async function pull(){
   render();if($('dayV').classList.contains('on'))openDay(sel)
  }catch(e){if(e.message!=='auth')note('No connection. Showing the last loaded bookings.')}
 }
-function ownerBtn(){const b=$('out');b.style.display=CLOUD?'block':'none';b.textContent=S?'Sign out (owner)':'Owner login';$('hint').style.display=isOwner()?'none':'block'}
+function ownerBtn(){const b=$('out');b.style.display=CLOUD?'block':'none';b.textContent=S?'Log out (admin)':'Log in as admin';$('hint').style.display=isOwner()?'none':'block'}
 function signOut(){S=null;try{localStorage.removeItem(KEY+'-auth')}catch(e){}B=[];ownerBtn();render();$('dayV').classList.remove('on');pull()}
 function showLogin(msg){
- $('loginS').innerHTML=`<h3>Owner login</h3><label for="l_e">Email</label><input id="l_e" type="email" autocomplete="username"><label for="l_p">Password</label><input id="l_p" type="password" autocomplete="current-password"><div class="warn" id="l_w">${esc(msg||'')}</div><div class="row"><button class="btn" id="l_x">Cancel</button><button class="btn pri" id="l_go">Sign in</button></div>`;
+ $('loginS').innerHTML=`<h3>Admin login</h3><label for="l_e">Email</label><input id="l_e" type="email" autocomplete="username"><label for="l_p">Password</label><input id="l_p" type="password" autocomplete="current-password"><div class="warn" id="l_w">${esc(msg||'')}</div><div class="row"><button class="btn" id="l_x">Cancel</button><button class="btn pri" id="l_go">Sign in</button></div>`;
  $('loginV').classList.add('on');
  $('l_x').onclick=()=>$('loginV').classList.remove('on');
  $('l_go').onclick=async()=>{
-  try{await auth({email:$('l_e').value.trim(),password:$('l_p').value},'password');$('loginV').classList.remove('on');ownerBtn();await pull()}
+  try{await auth({email:$('l_e').value.trim(),password:$('l_p').value},'password');$('loginV').classList.remove('on');ownerBtn();await pull();importLocal()}
   catch(e){$('l_w').textContent=e.message}
  };
+}
+async function importLocal(){
+ if(!CLOUD||!S)return;
+ let L=[];try{L=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){}
+ L=L.filter(b=>b&&CARS[b.car]&&b.sd&&b.ed&&b.st&&b.et);
+ if(!L.length||sessionStorage.getItem('skip-import'))return;
+ if(!confirm('Found '+L.length+' booking(s) saved only on this phone. Upload them to the shared calendar?')){try{sessionStorage.setItem('skip-import','1')}catch(e){}return}
+ try{
+  await api('bookings',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(L.map(b=>toDB({...b,agent:b.agent||'',id:crypto.randomUUID()})))});
+  localStorage.removeItem(KEY);note('Uploaded '+L.length+' booking(s).');await pull();
+ }catch(e){note('Could not upload: '+String(e.message).slice(0,100))}
 }
 function note(t){const x=$('toast');x.textContent=t;x.style.display='block';setTimeout(()=>{x.style.display='none'},3500)}
 const $=id=>document.getElementById(id);
@@ -260,7 +272,7 @@ render();
 $('out').onclick=()=>{S?signOut():showLogin()};
 $('loginV').onclick=e=>{if(e.target===$('loginV'))$('loginV').classList.remove('on')};
 ownerBtn();
-if(CLOUD){pull();setInterval(pull,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()})}
+if(CLOUD){pull().then(importLocal);setInterval(pull,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()})}
 $('splashLogo').innerHTML=document.querySelector('header svg').outerHTML;
 setTimeout(()=>{$('splash').classList.add('off');setTimeout(()=>$('splash').remove(),600)},1900);
 </script>
